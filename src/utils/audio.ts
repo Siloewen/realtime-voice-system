@@ -57,39 +57,59 @@ export function pcm16ToMulaw(pcm16Data: Int16Array): Buffer {
 }
 
 /**
- * Simple linear interpolation for upsampling 8kHz to 24kHz
+ * Cubic interpolation for better upsampling 8kHz to 24kHz
  */
 export function upsample8kTo24k(pcm8k: Int16Array): Int16Array {
   const ratio = 3; // 24kHz / 8kHz = 3
   const pcm24k = new Int16Array(pcm8k.length * ratio);
 
-  for (let i = 0; i < pcm8k.length - 1; i++) {
-    const sample1 = pcm8k[i];
-    const sample2 = pcm8k[i + 1];
+  for (let i = 0; i < pcm8k.length; i++) {
+    const i0 = Math.max(0, i - 1);
+    const i1 = i;
+    const i2 = Math.min(pcm8k.length - 1, i + 1);
+    const i3 = Math.min(pcm8k.length - 1, i + 2);
 
-    pcm24k[i * ratio] = sample1;
-    pcm24k[i * ratio + 1] = Math.round(sample1 * 0.67 + sample2 * 0.33);
-    pcm24k[i * ratio + 2] = Math.round(sample1 * 0.33 + sample2 * 0.67);
+    const y0 = pcm8k[i0];
+    const y1 = pcm8k[i1];
+    const y2 = pcm8k[i2];
+    const y3 = pcm8k[i3];
+
+    // Original sample
+    pcm24k[i * ratio] = y1;
+
+    // Interpolated samples using cubic interpolation
+    for (let j = 1; j < ratio; j++) {
+      const t = j / ratio;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const a0 = y3 - y2 - y0 + y1;
+      const a1 = y0 - y1 - a0;
+      const a2 = y2 - y0;
+      const a3 = y1;
+
+      const value = a0 * t3 + a1 * t2 + a2 * t + a3;
+      pcm24k[i * ratio + j] = Math.round(Math.max(-32768, Math.min(32767, value)));
+    }
   }
-
-  // Handle last sample
-  const lastIdx = pcm8k.length - 1;
-  pcm24k[lastIdx * ratio] = pcm8k[lastIdx];
-  pcm24k[lastIdx * ratio + 1] = pcm8k[lastIdx];
-  pcm24k[lastIdx * ratio + 2] = pcm8k[lastIdx];
 
   return pcm24k;
 }
 
 /**
- * Simple decimation for downsampling 24kHz to 8kHz
+ * Averaging for better downsampling 24kHz to 8kHz
  */
 export function downsample24kTo8k(pcm24k: Int16Array): Int16Array {
   const ratio = 3; // 24kHz / 8kHz = 3
   const pcm8k = new Int16Array(Math.floor(pcm24k.length / ratio));
 
   for (let i = 0; i < pcm8k.length; i++) {
-    pcm8k[i] = pcm24k[i * ratio];
+    // Average the 3 samples for better quality
+    const idx = i * ratio;
+    const sum = pcm24k[idx] + 
+                (idx + 1 < pcm24k.length ? pcm24k[idx + 1] : pcm24k[idx]) + 
+                (idx + 2 < pcm24k.length ? pcm24k[idx + 2] : pcm24k[idx]);
+    pcm8k[i] = Math.round(sum / 3);
   }
 
   return pcm8k;
