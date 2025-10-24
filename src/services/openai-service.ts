@@ -61,7 +61,7 @@ export class OpenAIService {
         'OpenAI-Beta': 'realtime=v1',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-12-17',
+        model: 'gpt-realtime',
         voice: 'sage',
         prompt: {
           id: this.promptId,
