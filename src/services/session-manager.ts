@@ -115,6 +115,11 @@ export class SessionManager {
         },
       });
 
+      // Trigger the AI to speak first (greeting)
+      this.openaiService.sendEvent({
+        type: 'response.create',
+      });
+
       console.log(`✓ Session initialized for stream ${streamSid}`);
     } catch (error) {
       console.error('Failed to initialize session:', error);
