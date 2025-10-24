@@ -6,6 +6,7 @@ import { TwilioMediaMessage, SessionConfig } from '../types.js';
 export class SessionManager {
   private sessions: Map<string, SessionConfig> = new Map();
   private openaiService: OpenAIService;
+  private audioBuffers: Map<string, string[]> = new Map(); // Buffer audio until session is ready
 
   constructor(openaiApiKey: string, promptId: string, promptVersion: string) {
     this.openaiService = new OpenAIService(openaiApiKey, promptId, promptVersion);
@@ -123,6 +124,21 @@ export class SessionManager {
       });
 
       console.log(`✓ Session initialized for stream ${streamSid}`);
+
+      // Flush any buffered audio that arrived before the session was ready
+      const bufferedAudio = this.audioBuffers.get(streamSid);
+      if (bufferedAudio && bufferedAudio.length > 0) {
+        console.log(`📦 Flushing ${bufferedAudio.length} buffered audio packets`);
+        for (const mulawBase64 of bufferedAudio) {
+          try {
+            const pcmBase64 = twilioToOpenAI(mulawBase64);
+            this.openaiService.sendAudio(pcmBase64);
+          } catch (error) {
+            console.error('Error processing buffered audio:', error);
+          }
+        }
+        this.audioBuffers.delete(streamSid);
+      }
     } catch (error) {
       console.error('Failed to initialize session:', error);
       twilioWs.close();
@@ -132,7 +148,11 @@ export class SessionManager {
   private async handleIncomingAudio(streamSid: string, mulawBase64: string): Promise<void> {
     const session = this.sessions.get(streamSid);
     if (!session) {
-      console.log('⚠️ No session found for audio:', streamSid);
+      // Session not ready yet, buffer the audio
+      if (!this.audioBuffers.has(streamSid)) {
+        this.audioBuffers.set(streamSid, []);
+      }
+      this.audioBuffers.get(streamSid)!.push(mulawBase64);
       return;
     }
 
@@ -229,6 +249,9 @@ export class SessionManager {
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN) {
       session.twilioWs.close();
     }
+
+    // Clean up buffered audio
+    this.audioBuffers.delete(streamSid);
 
     // Remove from sessions
     this.sessions.delete(streamSid);
