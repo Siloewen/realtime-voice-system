@@ -27,6 +27,10 @@ if (!OPENAI_PROMPT_ID) {
 const app = express();
 const server = createServer(app);
 
+// Add body parsing middleware
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 // Initialize Session Manager
 const sessionManager = new SessionManager(
   OPENAI_API_KEY,
@@ -45,19 +49,27 @@ app.get('/health', (req, res) => {
 
 // TwiML endpoint for incoming calls
 app.post('/incoming-call', (req, res) => {
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const wsUrl = `${protocol === 'https' ? 'wss' : 'ws'}://${host}/media-stream`;
+  try {
+    console.log('📞 Incoming call received:', req.body);
+    
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const wsUrl = `${protocol === 'https' ? 'wss' : 'ws'}://${host}/media-stream`;
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Connect>
         <Stream url="${wsUrl}" />
     </Connect>
 </Response>`;
 
-  res.type('text/xml');
-  res.send(twiml);
+    console.log('📞 Sending TwiML response:', twiml);
+    res.type('text/xml');
+    res.send(twiml);
+  } catch (error) {
+    console.error('❌ Error handling incoming call:', error);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 // Root endpoint with instructions
