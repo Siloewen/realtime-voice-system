@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: realtime-voice-agent
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_PROMPT_ID
+        sync: false
+      - key: OPENAI_PROMPT_VERSION
+        value: "3"
+      - key: PORT
+        value: "3000"
