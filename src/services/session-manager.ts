@@ -37,6 +37,8 @@ export class SessionManager {
           case 'media':
             if (streamSid && data.media) {
               await this.handleIncomingAudio(streamSid, data.media.payload);
+            } else {
+              console.log('⚠️ Received media event but missing streamSid or payload');
             }
             break;
 
@@ -129,7 +131,10 @@ export class SessionManager {
 
   private async handleIncomingAudio(streamSid: string, mulawBase64: string): Promise<void> {
     const session = this.sessions.get(streamSid);
-    if (!session) return;
+    if (!session) {
+      console.log('⚠️ No session found for audio:', streamSid);
+      return;
+    }
 
     try {
       // Convert Twilio μ-law to OpenAI PCM16
@@ -138,7 +143,7 @@ export class SessionManager {
       // Send to OpenAI
       this.openaiService.sendAudio(pcmBase64);
     } catch (error) {
-      console.error('Error processing incoming audio:', error);
+      console.error('❌ Error processing incoming audio:', error);
     }
   }
 
