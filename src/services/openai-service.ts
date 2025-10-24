@@ -22,7 +22,7 @@ export class OpenAIService {
             const { client_secret } = sessionData;
 
             // Connect to WebSocket with the ephemeral token
-            const url = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
+            const url = `wss://api.openai.com/v1/realtime?model=gpt-realtime`;
 
             this.ws = new WebSocket(url, {
               headers: {
